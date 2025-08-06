@@ -1,0 +1,52 @@
+name: 🛠️ Refactor Task
+description: Track a codebase or architecture change
+title: "[Refactor] "
+labels: [refactor, technical-debt]
+assignees: []
+body:
+  - type: input
+    id: scope
+    attributes:
+      label: Scope of refactor
+      placeholder: Convert Flask app to FastAPI, rename endpoints, modularize auth, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why are we doing this?
+      placeholder: What are the goals? What pain points are we fixing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected_components
+    attributes:
+      label: Affected files/modules
+      placeholder: e.g. `main.py`, `auth.py`, `routes/`, etc.
+    validations:
+      required: false
+
+  - type: textarea
+    id: migration_plan
+    attributes:
+      label: High-level plan / checklist
+      placeholder: |
+        - [ ] Remove Flask-specific imports
+        - [ ] Replace `@app.route` with FastAPI's `@app.get/post`
+        - [ ] Replace `request` with `Depends` and type annotations
+        - [ ] Write tests using `httpx` and `pytest`
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Low
+        - Medium
+        - High
+    validations:
+      required: false
