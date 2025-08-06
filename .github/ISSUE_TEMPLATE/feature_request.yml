@@ -1,49 +1,73 @@
-name: ✨ Feature Request
-description: Propose a new feature or improvement
-title: "[Feature] "
-labels: [enhancement]
-assignees: []
-body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for contributing! Please describe the feature or improvement you'd like to see.
+---
+name: "\U0001F41B Bug Report"
+about: Create a report to help us improve
+title: "\U0001F41B [BUG] <short description> "
+labels: bug
+assignees: ''
 
-  - type: input
-    id: summary
-    attributes:
-      label: Short description
-      placeholder: Add search filter, redesign API, etc.
-    validations:
-      required: true
+---
 
-  - type: textarea
-    id: context
-    attributes:
-      label: Problem this solves / Context
-      placeholder: What problem are you trying to solve?
-    validations:
-      required: false
+## 🐞 Summary
 
-  - type: textarea
-    id: solution
-    attributes:
-      label: Proposed solution
-      placeholder: Describe the desired behavior or approach
-    validations:
-      required: true
+> Provide a clear and concise description of the issue. What isn’t working as expected?
 
-  - type: dropdown
-    id: priority
-    attributes:
-      label: Priority
-      options:
-        - Low
-        - Medium
-        - High
-    validations:
-      required: false
+---
 
-  - type: markdown
-    attributes:
-      value: "👉 Please assign yourself or a team member once submitted."
+## 🔁 Steps to Reproduce
+
+> Describe the steps to trigger the bug.
+
+1. Go to '...'
+2. Click on '...'
+3. See error
+
+---
+
+## 🧼 Expected Behavior
+
+> What *should* have happened?
+
+---
+
+## 🧨 Actual Behavior
+
+> What *actually* happened?
+
+---
+
+## 🧪 Environment / Context
+
+> Where did this occur? Include relevant info like:
+
+- OS:
+- Browser:
+- API version:
+- App environment: `dev` | `staging` | `prod`
+
+---
+
+## 📸 Screenshots or Logs (Optional)
+
+> Paste screenshots, error messages, stack traces, or console output here.
+
+---
+
+**Expected behavior**
+A clear and concise description of what you expected to happen.
+
+**Screenshots**
+If applicable, add screenshots to help explain your problem.
+
+**Desktop (please complete the following information):**
+ - OS: [e.g. iOS]
+ - Browser [e.g. chrome, safari]
+ - Version [e.g. 22]
+
+**Smartphone (please complete the following information):**
+ - Device: [e.g. iPhone6]
+ - OS: [e.g. iOS8.1]
+ - Browser [e.g. stock browser, safari]
+ - Version [e.g. 22]
+
+**Additional context**
+Add any other context about the problem here.

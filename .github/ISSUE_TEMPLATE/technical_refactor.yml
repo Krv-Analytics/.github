@@ -1,52 +1,50 @@
-name: 🛠️ Refactor Task
-description: Track a codebase or architecture change
-title: "[Refactor] "
-labels: [refactor, technical-debt]
-assignees: []
-body:
-  - type: input
-    id: scope
-    attributes:
-      label: Scope of refactor
-      placeholder: Convert Flask app to FastAPI, rename endpoints, modularize auth, etc.
-    validations:
-      required: true
+---
+name: "\U0001F6E0 Refactor Task"
+about: Track technical refactors, migrations, or cleanup efforts
+title: '"[Refactor] <subsystem>: <goal or change>"'
+labels: ''
+assignees: ''
 
-  - type: textarea
-    id: motivation
-    attributes:
-      label: Why are we doing this?
-      placeholder: What are the goals? What pain points are we fixing?
-    validations:
-      required: true
+---
 
-  - type: textarea
-    id: affected_components
-    attributes:
-      label: Affected files/modules
-      placeholder: e.g. `main.py`, `auth.py`, `routes/`, etc.
-    validations:
-      required: false
+## 🧩 What needs to be refactored?
 
-  - type: textarea
-    id: migration_plan
-    attributes:
-      label: High-level plan / checklist
-      placeholder: |
-        - [ ] Remove Flask-specific imports
-        - [ ] Replace `@app.route` with FastAPI's `@app.get/post`
-        - [ ] Replace `request` with `Depends` and type annotations
-        - [ ] Write tests using `httpx` and `pytest`
-    validations:
-      required: false
+Describe the specific module, function, or system component that needs to change.
 
-  - type: dropdown
-    id: priority
-    attributes:
-      label: Priority
-      options:
-        - Low
-        - Medium
-        - High
-    validations:
-      required: false
+> Example: Convert Flask app to FastAPI, modularize auth layer, etc.
+
+- Affected module(s):
+- Scope of change:
+
+---
+
+## 🎯 Why refactor this?
+
+Clarify the motivation and expected outcome.
+
+- Pain points / tech debt:
+- Value to the team:
+- Long-term benefits:
+
+---
+
+## 🔨 Proposed Plan / Steps
+
+- [ ] Outline steps to complete the refactor
+- [ ] Include relevant code/process migration tasks
+- [ ] Define “done” clearly
+## 🧪 How will this be tested?
+
+Define how to verify the refactor is successful.
+
+- [ ] Existing tests passing?
+- [ ] New tests needed?
+- [ ] Manual QA steps?
+- [ ] Performance/compatibility checks?
+
+> Example:
+> - Run full test suite (`pytest`)
+> - Smoke test all routes using `httpx` client
+> - Validate responses and schema consistency
+
+---

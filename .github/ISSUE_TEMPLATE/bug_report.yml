@@ -1,51 +1,49 @@
-name: 🐛 Bug Report
-description: Report something that isn’t working as expected
-labels: [bug]
-body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for reporting! Please provide as much detail as possible.
+---
+name: "✨ Feature Request"
+about: Suggest an idea for this project
+title: "✨ [Feature Request] <Short Description> "
+labels: enhancement
+assignees: ''
 
-  - type: input
-    id: title
-    attributes:
-      label: What’s the bug?
-      placeholder: Short summary of the issue
-    validations:
-      required: true
+---
 
-  - type: textarea
-    id: steps
-    attributes:
-      label: Steps to reproduce
-      placeholder: |
-        1. Go to...
-        2. Click on...
-        3. See error
-      render: markdown
-    validations:
-      required: true
+## ✨ Summary
 
-  - type: textarea
-    id: expected
-    attributes:
-      label: What did you expect to happen?
-    validations:
-      required: false
+> Provide a brief description of the requested feature.
 
-  - type: dropdown
-    id: severity
-    attributes:
-      label: Severity
-      options:
-        - Low
-        - Medium
-        - High
-    validations:
-      required: false
+---
 
-assignees:
-  - sw
-  - sg
-  - jw
+## 🎯 Motivation
+
+> Why is this feature needed? What problem does it solve?
+
+---
+
+## 💡 Proposed Solution
+
+> Describe how you imagine this working. Include UI, API, or interaction ideas if relevant.
+
+---
+
+## 📐 Acceptance Criteria
+
+> Define what “done” looks like — this helps us scope and validate the feature.
+
+- [ ] ...
+- [ ] ...
+- [ ] ...
+
+---
+
+## 🧪 Testing Strategy (Optional)
+
+> How can this feature be verified once implemented?
+
+- [ ] Manual test flow
+- [ ] Unit/integration tests
+- [ ] User acceptance criteria
+
+---
+
+**Additional context**
+Add any other context or screenshots about the feature request here.
