@@ -7,7 +7,7 @@
   <br/>
   <sub>
     Krv lets companies turn private data and workflows into custom AI APIs — without moving or exposing their data.  
-    Powered by a hypergraph-based AI engine, Krv securely connects to existing systems, learns how they work, and instantly generates explainable, enterprise-ready AI capabilities you can plug in anywhere.
+    Powered by a hypergraph-based AI engine, Krv securely connects to existing systems, learns how they work, and instantly generates explainable, enterprise-ready AI capabilities that can optimize your business.
   </sub>
 </p>
 
@@ -19,7 +19,7 @@
     <img src="https://img.shields.io/badge/LinkedIn-Krv%20Analytics-blue?style=for-the-badge&logo=linkedin">
   </a>
   <a href="mailto:team@krv.ai">
-    <img src="https://img.shields.io/badge/Email-team@krv.ai-orange?style=for-the-badge&logo=gmail">
+    <img src="https://img.shields.io/badge/Email-team@krv.ai-fe2b27?style=for-the-badge&logo=gmail">
   </a>
 </p>
 
@@ -31,30 +31,35 @@
 ```mermaid
 %%{init: { 'theme': 'base', 'themeVariables': { 'git0': '#93a7c7', 'git1': '#d0d0d0', 'git2': '#e0e0e0', 'git3': '#f0f0f0', 'gitBranchLabel0': '#000000', 'gitBranchLabel1': '#000000', 'commitLabelColor': '#000000', 'commitLabelBackground': 'transparent', 'tagLabelColor': '#000000', 'tagLabelBackground': 'transparent', 'tagLabelBorder': 'transparent'}} }%%
 gitGraph TB:
-    commit id: "Enterprise Data Sources" tag: "SAP • ERP • Warehouses"
-    commit id: "IoT Streams & APIs" tag: "Real-time"
-    
+    commit id: "Enterprise Data Sources" tag: "SAP • ERP • Data Lakes"
+    commit id: "IoT & API Streams" tag: "Real-time"
+
     branch hypergraph-layer
     commit id: "Hypergraph Compiler" tag: "Zero-copy"
-    commit id: "Topological Analysis" tag: "Graph structure"
-    commit id: "Relational Embedding" tag: "Semantic mesh"
-    
+    commit id: "Unified Representation" tag: "Connect Silos"
+    commit id: "Semantic Playground" tag: "AI-Native"
+    commit id: "Policy-Aware Access" tag: "Enforce Org Security"
+
+
     branch ai-reasoning
-    commit id: "Graph Foundation Models" tag: "Training"
-    commit id: "Policy-Aware Inference" tag: "Governance"
-    
+    commit id: "Dynamic Data Curation" tag: "Context Aware Cleaning"
+    commit id: "Agentic Modeling" tag: "Lightweight Custom Models"
+    commit id: "Cloud-Native Training" tag: "Private Learning"
+
     checkout hypergraph-layer
-    merge ai-reasoning tag: "Model Integration"
-    
+    merge ai-reasoning tag: "Integrated Enterprise Intelligence"
+
     branch orchestration
-    commit id: "Workflow Orchestrator" tag: "Task planning"
-    commit id: "Zero-shot API Generation" tag: "Auto-generate"
-    
+    commit id: "Natural Language Interface" tag: "Understand User Goals"
+    commit id: "Workflow Engine" tag: "Plan & Execute Tasks"
+    commit id: "Zero-Shot API Generator" tag: "Create Optimal Endpoints"
+
     checkout main
     merge hypergraph-layer tag: "Core Platform"
-    merge orchestration tag: "Deployment"
-    
-    commit id: "Generated AI APIs" tag: "Enterprise-ready"
-    commit id: "Live Integration" tag: "No data migration"
+    merge orchestration tag: "Iteration and Deployment"
+
+    commit id: "Deployed AI Solutions" tag: "Custom, Org-Specific APIs"
+    commit id: "Live Integration" tag: "No Data Migration"
 ```
+
 </details>
