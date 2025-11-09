@@ -1,0 +1,236 @@
+name: 🎭 Staging Deploy (PR Preview)
+
+on:
+  workflow_call:
+    inputs:
+      base_service_name:
+        required: true
+        type: string
+        description: "Base service name (branch will be appended for staging)"
+      region:
+        required: true
+        type: string
+        description: "GCP region for deployment"
+      template_branch:
+        required: false
+        type: string
+        default: "main"
+      dockerfile_path:
+        required: false
+        type: string
+        default: ""
+      cloudbuild_path:
+        required: false
+        type: string
+        default: ""
+    secrets:
+      GCP_PROJECT_ID:
+        required: true
+      PROJECT_NUMBER:
+        required: true
+      ARTIFACT_REGISTRY_REPO:
+        required: true
+
+    outputs:
+      preview-url:
+        description: "URL of the deployed preview environment"
+        value: ${{ jobs.staging-deploy.outputs.preview-url }}
+      service-name:
+        description: "Name of the staging Cloud Run service"
+        value: ${{ jobs.staging-deploy.outputs.service-name }}
+
+jobs:
+  staging-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write # To comment on PR with preview URL
+
+    outputs:
+      preview-url: ${{ steps.get-url.outputs.service-url }}
+      service-name: ${{ steps.generate-names.outputs.service-name }}
+
+    steps:
+      # ---------------------------------------------------------------
+      # Generate branch-based staging service name
+      # ---------------------------------------------------------------
+      - name: 🏷️ Generate staging service name
+        id: generate-names
+        run: |
+          # Get branch name from PR
+          BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
+          echo "🌿 Branch: $BRANCH_NAME"
+
+          # Clean branch name for Cloud Run (lowercase, alphanumeric + hyphens only)
+          CLEAN_BRANCH=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')
+          echo "🧹 Cleaned branch: $CLEAN_BRANCH"
+
+          # Create staging service name
+          SERVICE_NAME="${{ inputs.base_service_name }}-staging-${CLEAN_BRANCH}"
+
+          # Ensure Cloud Run service name limits (max 63 chars)
+          if [ ${#SERVICE_NAME} -gt 63 ]; then
+            # Create hash for uniqueness and truncate
+            HASH=$(echo "$CLEAN_BRANCH" | sha256sum | cut -c1-6)
+            BASE_LENGTH=$((63 - ${#HASH} - 1))  # -1 for hyphen
+            TRUNCATED_BASE=$(echo "${{ inputs.base_service_name }}-staging" | cut -c1-$((BASE_LENGTH - ${#CLEAN_BRANCH})))
+            SERVICE_NAME="${TRUNCATED_BASE}-${CLEAN_BRANCH}-${HASH}"
+          fi
+
+          echo "service-name=$SERVICE_NAME" >> $GITHUB_OUTPUT
+          echo "clean-branch=$CLEAN_BRANCH" >> $GITHUB_OUTPUT
+          echo "🎯 Staging service: $SERVICE_NAME"
+
+      # ---------------------------------------------------------------
+      # Checkout the PR branch
+      # ---------------------------------------------------------------
+      - name: 🧾 Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      # ---------------------------------------------------------------
+      # Authenticate to Google Cloud using WIF
+      # ---------------------------------------------------------------
+      - name: 🔐 Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: "projects/${{ secrets.PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "github-cicd@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+
+      # ---------------------------------------------------------------
+      # Install gcloud CLI
+      # ---------------------------------------------------------------
+      - name: ☁️ Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      # ---------------------------------------------------------------
+      # Fetch templates from .github-private
+      # ---------------------------------------------------------------
+      - name: 📦 Fetch CI/CD templates
+        run: |
+          # Use local files if specified, otherwise fetch from .github-private
+          if [ -n "${{ inputs.cloudbuild_path }}" ] && [ -f "${{ inputs.cloudbuild_path }}" ]; then
+            echo "Using local cloudbuild.yaml: ${{ inputs.cloudbuild_path }}"
+            cp "${{ inputs.cloudbuild_path }}" ./cloudbuild.yaml
+          else
+            echo "Fetching cloudbuild.yaml from .github-private..."
+            gh repo clone Krv-Analytics/.github-private .gh-templates -- --depth=1 --branch=${{ inputs.template_branch }}
+            cp .gh-templates/templates/cloudbuild.yaml ./cloudbuild.yaml
+          fi
+
+          if [ -n "${{ inputs.dockerfile_path }}" ] && [ -f "${{ inputs.dockerfile_path }}" ]; then
+            echo "Using local Dockerfile: ${{ inputs.dockerfile_path }}"
+            cp "${{ inputs.dockerfile_path }}" ./Dockerfile
+          else
+            echo "Fetching Dockerfile from .github-private..."
+            if [ ! -d ".gh-templates" ]; then
+              gh repo clone Krv-Analytics/.github-private .gh-templates -- --depth=1 --branch=${{ inputs.template_branch }}
+            fi
+            cp .gh-templates/templates/Dockerfile ./Dockerfile
+          fi
+
+      # ---------------------------------------------------------------
+      # Build and deploy staging environment
+      # ---------------------------------------------------------------
+      - name: 🚀 Build & Deploy Staging
+        run: |
+          COMMIT_SHORT=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          SERVICE_NAME="${{ steps.generate-names.outputs.service-name }}"
+          CLEAN_BRANCH="${{ steps.generate-names.outputs.clean-branch }}"
+
+          echo "🧱 Using tag: staging-$COMMIT_SHORT"
+          echo "🎭 Deploying staging service: $SERVICE_NAME"
+
+          gcloud builds submit \
+            --config=cloudbuild.yaml \
+            --substitutions=_REGION=${{ inputs.region }},_SERVICE=$SERVICE_NAME,_REPO=${{ secrets.ARTIFACT_REGISTRY_REPO }},_TAG=staging-$COMMIT_SHORT
+
+      # ---------------------------------------------------------------
+      # Configure staging-specific settings
+      # ---------------------------------------------------------------
+      - name: ⚙️ Configure staging service
+        run: |
+          SERVICE_NAME="${{ steps.generate-names.outputs.service-name }}"
+
+          # Update service with staging labels and lower resource limits
+          gcloud run services update $SERVICE_NAME \
+            --region=${{ inputs.region }} \
+            --cpu=1 \
+            --memory=512Mi \
+            --min-instances=0 \
+            --max-instances=2 \
+            --update-labels="environment=staging,branch=${{ steps.generate-names.outputs.clean-branch }},repo=${{ github.repository }},pr=${{ github.event.number }}" \
+            --update-env-vars="NODE_ENV=staging,STAGING=true" \
+            --quiet
+
+      # ---------------------------------------------------------------
+      # Get the staging service URL
+      # ---------------------------------------------------------------
+      - name: 🌐 Get staging URL
+        id: get-url
+        run: |
+          SERVICE_NAME="${{ steps.generate-names.outputs.service-name }}"
+
+          # Wait a moment for service to be ready
+          sleep 5
+
+          SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
+            --region=${{ inputs.region }} \
+            --format="value(status.url)" 2>/dev/null || echo "")
+
+          if [ -n "$SERVICE_URL" ]; then
+            echo "service-url=$SERVICE_URL" >> $GITHUB_OUTPUT
+            echo "🌐 Staging environment: $SERVICE_URL"
+          else
+            echo "⚠️ Could not retrieve staging URL"
+            echo "service-url=" >> $GITHUB_OUTPUT
+          fi
+
+      # ---------------------------------------------------------------
+      # Comment on PR with staging URL
+      # ---------------------------------------------------------------
+      - name: 💬 Comment on PR
+        if: github.event_name == 'pull_request' && steps.get-url.outputs.service-url != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const serviceName = '${{ steps.generate-names.outputs.service-name }}';
+            const serviceUrl = '${{ steps.get-url.outputs.service-url }}';
+            const branch = '${{ github.head_ref }}';
+
+            const comment = `## 🎭 Staging Environment Ready!
+
+            **Branch:** \`${branch}\`
+            **Service:** \`${serviceName}\`
+            **URL:** ${serviceUrl}
+
+            🚀 Your changes are now live for preview and testing!
+
+            > ⚠️ This staging environment will be automatically cleaned up when the PR is closed or merged.
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      # ---------------------------------------------------------------
+      # Output summary
+      # ---------------------------------------------------------------
+      - name: 📋 Deployment Summary
+        run: |
+          echo "## 🎭 Staging Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Service Name:** ${{ steps.generate-names.outputs.service-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ inputs.region }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.head_ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** ${{ steps.get-url.outputs.service-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Staging environment is ready for testing! 🚀" >> $GITHUB_STEP_SUMMARY

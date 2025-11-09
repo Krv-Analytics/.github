@@ -1,0 +1,99 @@
+name: ☁️ GCP Build & Deploy
+
+on:
+  workflow_call:
+    inputs:
+      region:
+        required: true
+        type: string
+      service:
+        required: true
+        type: string
+      template_branch:
+        required: false
+        type: string
+        default: "main"
+      dockerfile_path:
+        required: false
+        type: string
+        default: ""
+      cloudbuild_path:
+        required: false
+        type: string
+        default: ""
+    secrets:
+      GCP_PROJECT_ID:
+        required: true
+      PROJECT_NUMBER:
+        required: true
+      ARTIFACT_REGISTRY_REPO:
+        required: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      # ---------------------------------------------------------------
+      # Checkout the current repository (e.g., krv-web)
+      # ---------------------------------------------------------------
+      - name: 🧾 Checkout current repository
+        uses: actions/checkout@v4
+
+      # ---------------------------------------------------------------
+      # Authenticate to Google Cloud using WIF
+      # ---------------------------------------------------------------
+      - name: 🔐 Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: "projects/${{ secrets.PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "github-cicd@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+
+      # ---------------------------------------------------------------
+      # Install gcloud CLI
+      # ---------------------------------------------------------------
+      - name: ☁️ Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      # ---------------------------------------------------------------
+      # Fetch templates from .github-private (defaults)
+      # ---------------------------------------------------------------
+      - name: 📦 Fetch CI/CD templates
+        run: |
+          # Use local files if specified, otherwise fetch from .github-private
+          if [ -n "${{ inputs.cloudbuild_path }}" ] && [ -f "${{ inputs.cloudbuild_path }}" ]; then
+            echo "Using local cloudbuild.yaml: ${{ inputs.cloudbuild_path }}"
+            cp "${{ inputs.cloudbuild_path }}" ./cloudbuild.yaml
+          else
+            echo "Fetching cloudbuild.yaml from .github-private..."
+            gh repo clone Krv-Analytics/.github-private .gh-templates -- --depth=1
+            cp .gh-templates/templates/cloudbuild.yaml ./cloudbuild.yaml
+          fi
+
+          if [ -n "${{ inputs.dockerfile_path }}" ] && [ -f "${{ inputs.dockerfile_path }}" ]; then
+            echo "Using local Dockerfile: ${{ inputs.dockerfile_path }}"
+            cp "${{ inputs.dockerfile_path }}" ./Dockerfile
+          else
+            echo "Fetching Dockerfile from .github-private..."
+            if [ ! -d ".gh-templates" ]; then
+              gh repo clone Krv-Analytics/.github-private .gh-templates -- --depth=1
+            fi
+            cp .gh-templates/templates/Dockerfile ./Dockerfile
+          fi
+
+      # ---------------------------------------------------------------
+      # Build and deploy to Cloud Run
+      # ---------------------------------------------------------------
+      - name: 🚀 Build & Deploy
+        run: |
+          COMMIT_SHORT=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          echo "🧱 Using tag: $COMMIT_SHORT"
+          gcloud builds submit \
+            --config=cloudbuild.yaml \
+            --substitutions=_REGION=${{ inputs.region }},_SERVICE=${{ inputs.service }},_REPO=${{ secrets.ARTIFACT_REGISTRY_REPO }},_TAG=$COMMIT_SHORT

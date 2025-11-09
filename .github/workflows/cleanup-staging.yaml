@@ -1,0 +1,198 @@
+name: 🧹 Cleanup Staging (PR Closed)
+
+on:
+  workflow_call:
+    inputs:
+      base_service_name:
+        required: true
+        type: string
+        description: "Base service name (must match staging deploy)"
+      region:
+        required: true
+        type: string
+        description: "GCP region where staging was deployed"
+    secrets:
+      GCP_PROJECT_ID:
+        required: true
+      PROJECT_NUMBER:
+        required: true
+
+jobs:
+  cleanup-staging:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write # To comment on PR about cleanup
+
+    steps:
+      # ---------------------------------------------------------------
+      # Generate the staging service name (same logic as deploy)
+      # ---------------------------------------------------------------
+      - name: 🏷️ Generate staging service name
+        id: generate-names
+        run: |
+          # Get branch name from PR
+          BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
+          echo "🌿 Branch: $BRANCH_NAME"
+
+          # Clean branch name (same logic as staging-reusable.yaml)
+          CLEAN_BRANCH=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')
+          echo "🧹 Cleaned branch: $CLEAN_BRANCH"
+
+          # Create staging service name (must match staging deploy)
+          SERVICE_NAME="${{ inputs.base_service_name }}-staging-${CLEAN_BRANCH}"
+
+          # Handle truncation (same logic as deploy)
+          if [ ${#SERVICE_NAME} -gt 63 ]; then
+            HASH=$(echo "$CLEAN_BRANCH" | sha256sum | cut -c1-6)
+            BASE_LENGTH=$((63 - ${#HASH} - 1))
+            TRUNCATED_BASE=$(echo "${{ inputs.base_service_name }}-staging" | cut -c1-$((BASE_LENGTH - ${#CLEAN_BRANCH})))
+            SERVICE_NAME="${TRUNCATED_BASE}-${CLEAN_BRANCH}-${HASH}"
+          fi
+
+          echo "service-name=$SERVICE_NAME" >> $GITHUB_OUTPUT
+          echo "🎯 Will cleanup service: $SERVICE_NAME"
+
+      # ---------------------------------------------------------------
+      # Authenticate to Google Cloud using WIF
+      # ---------------------------------------------------------------
+      - name: 🔐 Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: "projects/${{ secrets.PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "github-cicd@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+
+      # ---------------------------------------------------------------
+      # Install gcloud CLI
+      # ---------------------------------------------------------------
+      - name: ☁️ Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      # ---------------------------------------------------------------
+      # Check if staging service exists
+      # ---------------------------------------------------------------
+      - name: 🔍 Check if staging service exists
+        id: check-service
+        run: |
+          SERVICE_NAME="${{ steps.generate-names.outputs.service-name }}"
+
+          if gcloud run services describe $SERVICE_NAME --region=${{ inputs.region }} --quiet 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Staging service exists: $SERVICE_NAME"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No staging service found: $SERVICE_NAME"
+          fi
+
+      # ---------------------------------------------------------------
+      # Delete the staging service
+      # ---------------------------------------------------------------
+      - name: 🗑️ Delete staging service
+        if: steps.check-service.outputs.exists == 'true'
+        run: |
+          SERVICE_NAME="${{ steps.generate-names.outputs.service-name }}"
+
+          echo "🗑️ Deleting staging service: $SERVICE_NAME"
+          gcloud run services delete $SERVICE_NAME \
+            --region=${{ inputs.region }} \
+            --quiet
+
+          echo "✅ Staging service deleted successfully"
+
+      # ---------------------------------------------------------------
+      # Clean up container images (optional - keeps last few versions)
+      # ---------------------------------------------------------------
+      - name: 🧼 Cleanup old staging images
+        if: steps.check-service.outputs.exists == 'true'
+        run: |
+          BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
+          CLEAN_BRANCH=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')
+
+          echo "🧼 Cleaning up staging images for branch: $CLEAN_BRANCH"
+
+          # List and delete images with staging tags for this branch
+          gcloud artifacts docker images list \
+            ${{ inputs.region }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.ARTIFACT_REGISTRY_REPO }}/${{ inputs.base_service_name }} \
+            --filter="tags:staging-*" \
+            --format="value(IMAGE)" | head -10 | while read image; do
+            if [[ "$image" == *"staging-"* ]]; then
+              echo "🗑️ Deleting image: $image"
+              gcloud artifacts docker images delete "$image" --quiet || true
+            fi
+          done || echo "ℹ️ No staging images to cleanup"
+
+      # ---------------------------------------------------------------
+      # Comment on PR about cleanup
+      # ---------------------------------------------------------------
+      - name: 💬 Comment on PR (cleanup success)
+        if: github.event_name == 'pull_request' && steps.check-service.outputs.exists == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const serviceName = '${{ steps.generate-names.outputs.service-name }}';
+            const branch = '${{ github.head_ref }}';
+
+            const comment = `## 🧹 Staging Environment Cleaned Up
+
+            **Branch:** \`${branch}\`
+            **Service:** \`${serviceName}\` *(deleted)*
+
+            ✅ The staging environment has been successfully removed.
+
+            Thank you for testing! 🚀
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      # ---------------------------------------------------------------
+      # Comment on PR if nothing to cleanup
+      # ---------------------------------------------------------------
+      - name: 💬 Comment on PR (nothing to cleanup)
+        if: github.event_name == 'pull_request' && steps.check-service.outputs.exists == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const serviceName = '${{ steps.generate-names.outputs.service-name }}';
+            const branch = '${{ github.head_ref }}';
+
+            const comment = `## ℹ️ No Staging Environment to Clean Up
+
+            **Branch:** \`${branch}\`
+            **Expected Service:** \`${serviceName}\`
+
+            No staging environment was found for this branch.
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      # ---------------------------------------------------------------
+      # Output summary
+      # ---------------------------------------------------------------
+      - name: 📋 Cleanup Summary
+        run: |
+          echo "## 🧹 Staging Cleanup Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Service Name:** ${{ steps.generate-names.outputs.service-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Service Existed:** ${{ steps.check-service.outputs.exists }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ inputs.region }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.head_ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check-service.outputs.exists }}" == "true" ]; then
+            echo "✅ Staging environment successfully cleaned up!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ No staging environment found to clean up." >> $GITHUB_STEP_SUMMARY
+          fi
