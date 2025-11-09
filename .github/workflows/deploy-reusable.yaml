@@ -62,7 +62,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       # ---------------------------------------------------------------
-      # Fetch templates from .github-private (defaults)
+      # Fetch templates from .github (defaults)
       # ---------------------------------------------------------------
       - name: 📦 Fetch CI/CD templates
         run: |
@@ -71,8 +71,8 @@ jobs:
             echo "Using local cloudbuild.yaml: ${{ inputs.cloudbuild_path }}"
             cp "${{ inputs.cloudbuild_path }}" ./cloudbuild.yaml
           else
-            echo "Fetching cloudbuild.yaml from .github-private..."
-            gh repo clone Krv-Analytics/.github-private .gh-templates -- --depth=1
+            echo "Fetching cloudbuild.yaml from .github..."
+            gh repo clone Krv-Analytics/.github .gh-templates -- --depth=1
             cp .gh-templates/templates/cloudbuild.yaml ./cloudbuild.yaml
           fi
 
@@ -80,9 +80,9 @@ jobs:
             echo "Using local Dockerfile: ${{ inputs.dockerfile_path }}"
             cp "${{ inputs.dockerfile_path }}" ./Dockerfile
           else
-            echo "Fetching Dockerfile from .github-private..."
+            echo "Fetching Dockerfile from .github..."
             if [ ! -d ".gh-templates" ]; then
-              gh repo clone Krv-Analytics/.github-private .gh-templates -- --depth=1
+              gh repo clone Krv-Analytics/.github .gh-templates -- --depth=1
             fi
             cp .gh-templates/templates/Dockerfile ./Dockerfile
           fi
