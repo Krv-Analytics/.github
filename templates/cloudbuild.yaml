@@ -38,5 +38,3 @@ images:
 
 options:
   logging: CLOUD_LOGGING_ONLY
-
-serviceAccount: projects/${PROJECT_ID}/serviceAccounts/${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com
