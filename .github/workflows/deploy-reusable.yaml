@@ -62,7 +62,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       # ---------------------------------------------------------------
-      # Fetch templates from .github (defaults)
+      # Fetch templates from .github
       # ---------------------------------------------------------------
       - name: 📦 Fetch CI/CD templates
         env:
