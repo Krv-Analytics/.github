@@ -96,6 +96,6 @@ jobs:
         run: |
           COMMIT_SHORT=$(echo "${GITHUB_SHA}" | cut -c1-7)
           echo "🧱 Using tag: $COMMIT_SHORT"
-          gcloud builds submit --verbosity=debug \
+          gcloud builds submit \
             --config=cloudbuild.yaml \
             --substitutions=_REGION=${{ inputs.region }},_SERVICE=${{ inputs.service }},_REPO=${{ secrets.ARTIFACT_REGISTRY_REPO }},_TAG=$COMMIT_SHORT
