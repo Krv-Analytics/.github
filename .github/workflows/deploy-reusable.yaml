@@ -65,8 +65,10 @@ jobs:
       # Fetch templates from .github (defaults)
       # ---------------------------------------------------------------
       - name: 📦 Fetch CI/CD templates
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Use local files if specified, otherwise fetch from .github-private
+          # Use local files if specified, otherwise fetch from .github
           if [ -n "${{ inputs.cloudbuild_path }}" ] && [ -f "${{ inputs.cloudbuild_path }}" ]; then
             echo "Using local cloudbuild.yaml: ${{ inputs.cloudbuild_path }}"
             cp "${{ inputs.cloudbuild_path }}" ./cloudbuild.yaml
